@@ -1,7 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -std=gnu99
 
-
 all:tcp-client tcp-server
 tcp-client:
 	$(CC) $(CFLAGS) -o tcp-client tcp-client.c
