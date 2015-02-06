@@ -3,7 +3,6 @@
   who is listening on port 8888. It sends 1 short message to the server and, then receives the
   server's reply.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,27 +22,23 @@ void error(char *msg) {
 }
 
 int main(int argc, char *argv[]) {
-  // socket file descriptor, bytes sent and received
   int sockfd, bytes_sent, bytes_received;
-  // port number the server is listening on
-  int portnum = 8888;
+  char recv_buffer [256];
   // structure that contains info about internet addr
   struct sockaddr_in serv_addr;
 
-  // message to send to server
-  char * send_buffer = "Hello server";
-  // buffer used to receive a message from server
-  char recv_buffer [256];
-
-  if (argc < 2) {
-    printf ("Usage: client server_ip\n");
-    exit (0);
+  if(argc < 4) {
+    fprintf(stderr, "Usage: %s <server addr> <server port> <message>\n",argv[0]);
+    exit(1);
   }
-
+  
+  char *send_buffer = argv[3];
+  
   // create socket
-  sockfd = socket (AF_INET, SOCK_STREAM, 0);
+  sockfd = socket (AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0) 
     error ("ERROR opening socket\n");
+  
   // 0 out the struct
   memset (&serv_addr, 0, sizeof (serv_addr));
   // domain is Internet
@@ -53,19 +48,21 @@ int main(int argc, char *argv[]) {
   if(inet_pton(AF_INET, argv [1], &serv_addr.sin_addr) < 0)
     error ("ERROR, copying ip\n");
   // set server's port number, stores it in network byte order
-  serv_addr.sin_port = htons (portnum);
-  // connect to server
-  if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof (serv_addr)) < 0) 
-    error ("ERROR connecting");
+  serv_addr.sin_port = htons(atoi(argv[2]));
+  
   // send message to server
-  bytes_sent = send (sockfd, send_buffer, strlen (send_buffer), 0);
+  bytes_sent = sendto (sockfd, send_buffer, strlen(send_buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
 
   if (bytes_sent < 0) 
     error ("ERROR writing to socket");
   // 0 out receive buffer
   memset (recv_buffer, 0, sizeof (char) * 256);
   // receive message from server
-  bytes_received = recv (sockfd, recv_buffer, sizeof (recv_buffer), 0);
+  // arg 5 and 6 (src sockaddr and its len) are filled in by recvfrom
+  // since there is not need for this to be filled out in the context of this program
+  // we just pass in NULL
+  bytes_received = recvfrom (sockfd, recv_buffer, sizeof (recv_buffer), 0, NULL, NULL);
+
   if (bytes_received < 0) 
     error("ERROR reading from socket");
 
