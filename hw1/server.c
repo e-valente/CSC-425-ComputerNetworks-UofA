@@ -17,36 +17,21 @@ struct header {
 };
 
 
-struct packet {
-  uint32_t sec;
-  uint32_t usec;
-  int length;
-  //char *msg;
-  char msg[256];
-};
-
 void error(char *msg){
   perror(msg);
   exit(1);
 }
 
-int main(int argc, char * argv[]){
- 
+void startTCPserver(int port) {
+  
   int sockfd, session, bytes_sent, bytes_received;
   struct header myheader;
   char *payload;
   
-
   socklen_t clientlen;
   char buffer[256];
   struct sockaddr_in serv_addr, client_addr;
-  // server's reply
-  char *reply = "Hello client";
-
-  if(argc < 2) {
-    fprintf(stderr, "Usage: %s port_to_listen\n", argv[0]);
-    exit(1);
-  }
+ 
   // create a stream socket (TCP)
   sockfd = socket (AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0)
@@ -58,10 +43,10 @@ int main(int argc, char * argv[]){
   // don't need a specific address, any of the network interface will do
   serv_addr.sin_addr.s_addr = INADDR_ANY;
   // set port number, and stores it in network byte order
-  serv_addr.sin_port = htons(atoi(argv[1]));
+  serv_addr.sin_port = htons(port);
 
   // bind socket to an address
-  if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+  if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     error("ERROR on binding");
   
   // listen to socket, set maximum pending connection is 5
@@ -71,9 +56,9 @@ int main(int argc, char * argv[]){
   // accept first incoming connection on the pending queue, returns a new file descriptor
   session = accept(sockfd, (struct sockaddr *) &client_addr, &clientlen);
 
-  if (session < 0)
+  if(session < 0)
     error("ERROR on accept");
-  memset (buffer, 0, sizeof (buffer));
+  memset(buffer, 0, sizeof(buffer));
   
   // receive header from client 
   bytes_received = recv(session, &myheader, sizeof(struct header), 0);
@@ -96,5 +81,94 @@ int main(int argc, char * argv[]){
   free(payload);
   close (session);
   close (sockfd); 
+  return 0; 
+  
+  
+  
+}
+
+void startUDPserver(int port) {
+  
+  int sockfd, bytes_sent, bytes_received;
+  struct header myheader;
+  char *payload;
+  
+  socklen_t clientlen;
+  char buffer[256];
+  struct sockaddr_in serv_addr, client_addr;
+ 
+  // create a stream socket (UDP)
+  sockfd = socket (AF_INET, SOCK_DGRAM, 0);
+  if (sockfd < 0)
+    error ("ERROR opening socket");
+  
+  
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  // don't need a specific address, any of the network interface will do
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  // set port number, and stores it in network byte order
+  serv_addr.sin_port = htons(port);
+
+  // bind socket to an address
+  if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
+    error("ERROR on binding");
+ 
+   //zeroing our buffer to receive data
+  memset(&myheader, 0, sizeof(struct header));
+  // set length of client address
+  clientlen = sizeof(client_addr);
+ 
+  // receive header from client 
+  bytes_received = recvfrom(sockfd, &myheader, sizeof(struct header), 0,
+    (struct sockaddr*)&client_addr, &clientlen);
+  
+  if (bytes_received < 0)
+    error("ERROR reading from socket");
+  
+  // receive header from client 
+  payload = (char*)malloc(sizeof(char) * myheader.length);
+  bytes_received = recvfrom(sockfd, payload, sizeof(char) * myheader.length, 0,
+     (struct sockaddr*)&client_addr, &clientlen);
+  
+  if (bytes_received < 0)
+    error("ERROR reading from socket");
+  
+  fprintf(stdout, "%d\n", myheader.length);
+
+  
+  bytes_sent = sendto(sockfd, payload, sizeof(char) * strlen(payload), 0,
+    (struct sockaddr*)&client_addr, clientlen);
+  if (bytes_sent < 0)
+    error("ERROR writing to socket");
+
+  free(payload);
+  close (sockfd); 
+  
+}
+
+
+int main(int argc, char * argv[]){
+ 
+  int sockfd, session, bytes_sent, bytes_received;
+  struct header myheader;
+  char *payload;
+  
+
+  socklen_t clientlen;
+  char buffer[256];
+  struct sockaddr_in serv_addr, client_addr;
+ 
+  if(argc != 3) {
+    fprintf(stderr, "Usage: %s <tcp|udp> port_to_listen\n", argv[0]);
+    exit(1);
+  }
+
+  if(strcmp(argv[1], "tcp") == 0)   
+    startTCPserver(atoi(argv[2]));
+  
+  if(strcmp(argv[1], "udp") == 0)   
+    startUDPserver(atoi(argv[2]));
+    
   return 0; 
 }

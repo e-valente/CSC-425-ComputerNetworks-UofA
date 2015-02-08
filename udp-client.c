@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
   // arg 5 and 6 (src sockaddr and its len) are filled in by recvfrom
   // since there is not need for this to be filled out in the context of this program
   // we just pass in NULL
-  bytes_received = recvfrom (sockfd, recv_buffer, sizeof (recv_buffer), 0, NULL, NULL);
+  bytes_received = recvfrom(sockfd, recv_buffer, sizeof (recv_buffer), 0, NULL, NULL);
 
   if (bytes_received < 0) 
     error("ERROR reading from socket");

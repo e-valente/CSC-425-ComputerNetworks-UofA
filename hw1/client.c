@@ -68,7 +68,7 @@ void error(char *msg){
   exit(1);
 }
 
-void tcpServer(char *serverIPAddr, int port)
+void startTCPclient(char *serverIPAddr, int port)
 {
   int sockfd, bytes_sent, bytes_received;
   struct sockaddr_in serv_addr;
@@ -146,23 +146,97 @@ void tcpServer(char *serverIPAddr, int port)
   
 }
 
+
+void startUDPclient(char *serverIPAddr, int port)
+{
+  int sockfd, bytes_sent, bytes_received;
+  struct sockaddr_in serv_addr;
+  struct header myheader;
+  struct timeval startTime, endTime;
+  char *payload;
+  double rtt;
+
+  // buffer used to receive a message from server
+  char *recv_buffer;
+  
+  sockfd = socket (AF_INET, SOCK_DGRAM, 0);
+  if (sockfd < 0) 
+    error ("ERROR opening socket\n");
+  
+
+  //0 is the "constant"
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  
+  serv_addr.sin_family = AF_INET;
+  //convert and copy server's ip addr into serv_addr
+  if(inet_pton(AF_INET, serverIPAddr, &serv_addr.sin_addr) < 0)
+    error ("ERROR, copying ip addr\n");
+  
+  // set server's port number, stores it in network byte order
+  
+  serv_addr.sin_port = htons(port);
+  
+  //UDP has not to use CONNECT
+  
+  // send message to server
+  getStringFromUser(&payload);
+  recv_buffer = (char*)malloc(sizeof(char) * strlen(payload));
+  memset(recv_buffer, 0, sizeof(char) * strlen(payload));
+  myheader.length = strlen(payload);
+  myheader.sec = startTime.tv_sec;
+  myheader.usec = startTime.tv_usec;
+  
+  
+  bytes_sent = sendto(sockfd, &myheader, sizeof(struct header), 0, 
+		  (struct sockadd*) &serv_addr, sizeof(serv_addr));
+  if (bytes_sent < 0) 
+    error ("ERROR writing to socket");
+ 
+
+  //sends the payload
+  gettimeofday(&startTime, NULL);
+  bytes_sent = sendto(sockfd, payload, sizeof(char) * strlen(payload), 0,
+      (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+
+  if (bytes_sent < 0) 
+    error ("ERROR writing to socket");
+  // receive message from server
+  
+  bytes_received = recvfrom(sockfd, recv_buffer, sizeof(char) * strlen(payload), 0, 
+	    NULL, NULL);
+ 
+  gettimeofday(&endTime, NULL);
+  
+  rtt = calculateDeltaTime(startTime, endTime);
+  
+  if (bytes_received < 0) 
+    error("ERROR reading from socket");
+
+  //echo the sent message
+  printf("%s\n",recv_buffer);
+  fprintf(stdout,"%.3lf\n", rtt);
+ 
+  free(payload);
+  close (sockfd);
+  
+}
+
+
 int main(int argc, char *argv[]) {
 
 
-  if ((argc != 4) || (strcmp(argv[1], "tcp") != 0) &&
-     (strcmp(argv[1], "udp") != 0)) {
+  if ((argc != 4) || (strcmp(argv[1], "tcp") != 0) 
+    && (strcmp(argv[1], "udp") != 0)) {
       fprintf(stderr, "Usage: %s <tcp|udp> <server ip> <server port>\n", argv[0]);
     exit (1);
   }
 
-  if(strcmp(argv[1], "tcp") == 0) {
-    printf("tcp\n");
+  if(strcmp(argv[1], "tcp") == 0)   
+    startTCPclient(argv[2], atoi(argv[3]));
+  
+  if(strcmp(argv[1], "udp") == 0)   
+    startUDPclient(argv[2], atoi(argv[3]));
     
-    tcpServer(argv[2], atoi(argv[3]));
-    
-  }
  
-    
-
   return 0;
 }
