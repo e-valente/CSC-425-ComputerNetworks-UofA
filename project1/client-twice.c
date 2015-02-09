@@ -12,18 +12,12 @@
 #include <unistd.h>
 
 
-
-
 struct header {
-  int sec;
-  int usec;
+  uint32_t sec;
+  uint32_t usec;
   int length;
 };
 
-struct packet {
-  struct header hdr;
-  char *payload;
-};
 void getStringFromUser(char **mystring_) {
   
   char c;
@@ -78,8 +72,7 @@ void startTCPclient(char *serverIPAddr, int port)
 {
   int sockfd, bytes_sent, bytes_received;
   struct sockaddr_in serv_addr;
-  //struct header myheader;
-  struct packet mypacket, recv_packet;
+  struct header myheader;
   struct timeval startTime, endTime;
   char *payload, *recv_buffer;
   double rtt;
@@ -102,38 +95,36 @@ void startTCPclient(char *serverIPAddr, int port)
     error ("ERROR connecting");
   
   // send message to server
-  getStringFromUser(&mypacket.payload);
-  //sends packet
-  gettimeofday(&startTime, NULL);
-  mypacket.hdr.length = strlen(mypacket.payload);
-  mypacket.hdr.sec = startTime.tv_sec;
-  mypacket.hdr.usec = startTime.tv_usec;
-  bytes_sent = send(sockfd, &mypacket, sizeof(struct packet) + sizeof(char) * strlen(mypacket.payload), 0);
+  getStringFromUser(&payload);
+  recv_buffer = (char*)malloc(sizeof(char) * strlen(payload));
+  memset(recv_buffer, 0, sizeof(char) * strlen(payload));
+  myheader.length = strlen(payload);
+  myheader.sec = startTime.tv_sec;
+  myheader.usec = startTime.tv_usec;
+  
+  //sends header
+  bytes_sent = send(sockfd, &myheader, sizeof(struct header), 0);
   if (bytes_sent < 0) 
     error ("ERROR writing to socket");
  
+  //sends the payload
+  gettimeofday(&startTime, NULL);
+  bytes_sent = send(sockfd, payload, sizeof(char) * strlen(payload), 0);
+  if (bytes_sent < 0) 
+    error ("ERROR writing to socket");
   
-  memset(&recv_packet, 0, sizeof(struct packet));
- 
-  // receive the header
-  bytes_received = recv(sockfd, &recv_packet.hdr, sizeof(struct header), 0);
-  //at theis point we know the payload's size
-  recv_packet.payload = (char*)malloc(sizeof(char) * recv_packet.hdr.length);
-  //receives payload
-  bytes_received = recv(sockfd, recv_packet.payload, sizeof(char) * recv_packet.hdr.length, 0);
+  // receive message from the server 
+  bytes_received = recv(sockfd, recv_buffer, sizeof(char) * strlen(payload), 0);
   gettimeofday(&endTime, NULL);
-  
   rtt = calculateDeltaTime(startTime, endTime);
   if (bytes_received < 0) 
     error("ERROR reading from socket");
 
   //echo the sent message
-  printf("%d\n",recv_packet.hdr.sec);
-  printf("%s\n",recv_packet.payload);
+  printf("%s\n",recv_buffer);
   fprintf(stdout,"%.3lf\n", rtt);
  
-  free(mypacket.payload);
-  free(recv_packet.payload);
+  free(payload);
   close (sockfd);
   
 }
