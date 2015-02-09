@@ -34,6 +34,8 @@ void startTCPserver(int port) {
   struct packet recv_packet;
   socklen_t clientlen;
   struct sockaddr_in serv_addr, client_addr;
+  char garbage[MAXPAYLOAD];
+ 
  
   // create a stream socket (TCP)
   sockfd = socket (AF_INET, SOCK_STREAM, 0);
@@ -47,19 +49,22 @@ void startTCPserver(int port) {
   // set port number, and stores it in network byte order
   serv_addr.sin_port = htons(port);
 
+    
   // bind socket to an address
   if(bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
-    error("ERROR on binding");
-  
+    error("ERROR on binding"); 
   // listen to socket, set maximum pending connection is 5
-  listen (sockfd, 5);
+  listen(sockfd, 5);
   // set length of client address
   clientlen = sizeof(client_addr);
+
   // accept first incoming connection on the pending queue, returns a new file descriptor
   session = accept(sockfd, (struct sockaddr *) &client_addr, &clientlen);
 
   if(session < 0)
     error("ERROR on accept");
+  
+
   memset(&recv_packet, 0, sizeof(struct packet));
   
   // receive header from client 
@@ -67,6 +72,7 @@ void startTCPserver(int port) {
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
+  fprintf(stdout, "%d\n", recv_packet.hdr.length);
   
   // receive header from client 
  // mypacket.payload = (char*)malloc(sizeof(char) * mypacket.hdr.length);
@@ -76,14 +82,13 @@ void startTCPserver(int port) {
   
   fprintf(stdout, "%d\n", recv_packet.hdr.length);
   
-  bytes_sent = send (session, &recv_packet, sizeof(struct header) + sizeof(char) * recv_packet.hdr.length, 0);
+  bytes_sent = send(session, &recv_packet, sizeof(struct header) + sizeof(char) * recv_packet.hdr.length, 0);
   if (bytes_sent < 0)
     error("ERROR writing to socket");
-
-
+  
   close (session);
   close (sockfd); 
-  
+
 }
 
 void startUDPserver(int port) {
@@ -142,11 +147,12 @@ int main(int argc, char * argv[]){
     exit(1);
   }
 
-  if(strcmp(argv[1], "tcp") == 0)   
-    startTCPserver(atoi(argv[2]));
+  if(strcmp(argv[1], "tcp") == 0)  
+    while(1)startTCPserver(atoi(argv[2]));
+    
   
   if(strcmp(argv[1], "udp") == 0)   
-    startUDPserver(atoi(argv[2]));
+    while(1)startUDPserver(atoi(argv[2]));
     
   return 0; 
 }

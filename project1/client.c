@@ -74,17 +74,20 @@ void error(char *msg){
   exit(1);
 }
 
-void startTCPclient(char *serverIPAddr, int port)
+int startTCPclient(char *serverIPAddr, int port)
 {
   int sockfd, bytes_sent, bytes_received;
   struct sockaddr_in serv_addr;
   struct packet mypacket, recv_packet;
   struct timeval startTime, endTime;
   double rtt;
+  int c;
+  
   
   sockfd = socket (AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) 
     error ("ERROR opening socket\n");
+  
   
   //0 is the "constant"
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -99,10 +102,15 @@ void startTCPclient(char *serverIPAddr, int port)
   if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
     error ("ERROR connecting");
   
+  //while(1) {
   // send message to server
+  memset(&mypacket, 0, sizeof(struct packet));
   //getStringFromUser(&mypacket.payload);
-  scanf("%[^\n]s", mypacket.payload);
  
+  scanf("%[^\n]s", mypacket.payload);
+  //flush the input buffer
+  while ((c = getchar()) != EOF && c != '\n');
+
   //sends packet
   gettimeofday(&startTime, NULL);
   mypacket.hdr.length = strlen(mypacket.payload);
@@ -128,13 +136,14 @@ void startTCPclient(char *serverIPAddr, int port)
     error("ERROR reading from socket");
 
   //echo the sent message
-  printf("%d\n",recv_packet.hdr.sec);
-  printf("%s\n",recv_packet.payload);
+  fprintf(stdout,"%s\n",recv_packet.payload);
   fprintf(stdout,"%.3lf\n", rtt);
- 
-  //free(mypacket.payload);
-  //free(recv_packet.payload);
+
+   
   close (sockfd);
+  
+  return 0;
+  
   
 }
 
@@ -146,6 +155,7 @@ void startUDPclient(char *serverIPAddr, int port)
   struct packet mypacket, recv_packet;
   struct timeval startTime, endTime;
   double rtt;
+  int c;
   
   sockfd = socket (AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0) 
@@ -164,6 +174,8 @@ void startUDPclient(char *serverIPAddr, int port)
   //UDP has not to use CONNECT 
   // send message to server
   scanf("%[^\n]s", mypacket.payload);
+  //flush the input buffer
+  while ((c = getchar()) != EOF && c != '\n');
   mypacket.hdr.length = strlen(mypacket.payload);
   gettimeofday(&startTime, NULL);
   mypacket.hdr.sec = startTime.tv_sec;
@@ -180,8 +192,6 @@ void startUDPclient(char *serverIPAddr, int port)
   
    if (bytes_received < 0) 
     error("ERROR reading from socket");
-   
-  printf("%d\n",recv_packet.hdr.length);
  
  
    gettimeofday(&endTime, NULL);
@@ -190,7 +200,7 @@ void startUDPclient(char *serverIPAddr, int port)
  
 
   //echo the sent message
-  printf("%s\n",recv_packet.payload);
+  fprintf(stdout, "%s\n",recv_packet.payload);
   fprintf(stdout,"%.3lf\n", rtt);
  
   close (sockfd);
@@ -207,11 +217,12 @@ int main(int argc, char *argv[]) {
     exit (1);
   }
 
-  if(strcmp(argv[1], "tcp") == 0)   
-    startTCPclient(argv[2], atoi(argv[3]));
+  if(strcmp(argv[1], "tcp") == 0)
+    while(1) startTCPclient(argv[2], atoi(argv[3]));
+  
   
   if(strcmp(argv[1], "udp") == 0)   
-    startUDPclient(argv[2], atoi(argv[3]));
+    while(1) startUDPclient(argv[2], atoi(argv[3]));
     
  
   return 0;
