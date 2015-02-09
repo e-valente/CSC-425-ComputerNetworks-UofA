@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+#define MAXPAYLOAD 10000 
+
 struct header {
   int sec;
   int usec;
@@ -18,9 +20,8 @@ struct header {
 
 struct packet {
   struct header hdr;
-  char *payload;
+  char payload[MAXPAYLOAD];
 };
-
 
 void error(char *msg){
   perror(msg);
@@ -30,17 +31,14 @@ void error(char *msg){
 void startTCPserver(int port) {
   
   int sockfd, session, bytes_sent, bytes_received;
-  struct header myheader;
-  struct packet mypacket;
-  char *payload;
+  struct packet recv_packet;
   socklen_t clientlen;
   struct sockaddr_in serv_addr, client_addr;
  
   // create a stream socket (TCP)
   sockfd = socket (AF_INET, SOCK_STREAM, 0);
-  if (sockfd < 0)
+  if(sockfd < 0)
     error ("ERROR opening socket");
-  
   
   memset (&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
@@ -62,28 +60,27 @@ void startTCPserver(int port) {
 
   if(session < 0)
     error("ERROR on accept");
-  memset(&mypacket, 0, sizeof(struct packet));
+  memset(&recv_packet, 0, sizeof(struct packet));
   
   // receive header from client 
-  bytes_received = recv(session, &mypacket, sizeof(struct packet), 0);
+  bytes_received = recv(session, &recv_packet.hdr, sizeof(struct header), 0);
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
+  
   // receive header from client 
-  mypacket.payload = (char*)malloc(sizeof(char) * mypacket.hdr.length);
-  bytes_received = recv(session, mypacket.payload, sizeof(char) * mypacket.hdr.length, 0);
+ // mypacket.payload = (char*)malloc(sizeof(char) * mypacket.hdr.length);
+  bytes_received = recv(session, recv_packet.payload, sizeof(char) * recv_packet.hdr.length, 0);
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
-  fprintf(stdout, "%d\n", mypacket.hdr.sec);
-  fprintf(stdout, "%s\n", mypacket.payload);
-  fprintf(stdout, "%d\n", mypacket.hdr.length);
+  fprintf(stdout, "%d\n", recv_packet.hdr.length);
   
-  bytes_sent = send (session, &mypacket, sizeof(struct packet) + sizeof(char) * mypacket.hdr.length, 0);
+  bytes_sent = send (session, &recv_packet, sizeof(struct header) + sizeof(char) * recv_packet.hdr.length, 0);
   if (bytes_sent < 0)
     error("ERROR writing to socket");
 
-  free(mypacket.payload);
+
   close (session);
   close (sockfd); 
   
@@ -92,8 +89,7 @@ void startTCPserver(int port) {
 void startUDPserver(int port) {
   
   int sockfd, bytes_sent, bytes_received;
-  struct header myheader;
-  char *payload;
+  struct packet recv_packet;
   socklen_t clientlen;
   struct sockaddr_in serv_addr, client_addr;
  
@@ -115,34 +111,25 @@ void startUDPserver(int port) {
     error("ERROR on binding");
  
    //zeroing our buffer to receive data
-  memset(&myheader, 0, sizeof(struct header));
+  memset(&recv_packet, 0, sizeof(struct packet));
   // set length of client address
   clientlen = sizeof(client_addr);
  
   // receive header from client 
-  bytes_received = recvfrom(sockfd, &myheader, sizeof(struct header), 0,
+  bytes_received = recvfrom(sockfd, &recv_packet, sizeof(struct packet), 0,
     (struct sockaddr*)&client_addr, &clientlen);
   
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
-  // receive header from client 
-  payload = (char*)malloc(sizeof(char) * myheader.length);
-  bytes_received = recvfrom(sockfd, payload, sizeof(char) * myheader.length, 0,
-     (struct sockaddr*)&client_addr, &clientlen);
   
-  if (bytes_received < 0)
-    error("ERROR reading from socket");
-  
-  fprintf(stdout, "%d\n", myheader.length);
+  fprintf(stdout, "%d\n", recv_packet.hdr.length);
 
-  
-  bytes_sent = sendto(sockfd, payload, sizeof(char) * strlen(payload), 0,
+  bytes_sent = sendto(sockfd, &recv_packet,  sizeof(struct header) + sizeof(char) * recv_packet.hdr.length, 0,
     (struct sockaddr*)&client_addr, clientlen);
   if (bytes_sent < 0)
     error("ERROR writing to socket");
 
-  free(payload);
   close (sockfd); 
   
 }
