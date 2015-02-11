@@ -24,27 +24,6 @@ struct packet {
   struct header hdr;
   char payload[MAXPAYLOAD];
 };
-void getStringFromUser(char **mystring_) {
-  
-  char c;
-  int i;
-  char *mystring;
-  
-  mystring = (char*)malloc(sizeof(char));
-  
-  i = 0;
-  while(c!='\n') {
-    c = getc(stdin);   
-     mystring = (char*)realloc(mystring,i+1*sizeof(char));
-     mystring[i++] = c; 
-
-  }
-  //overwrite \n to \0
-   mystring[i-1]='\0';   
-   
-   *mystring_ = mystring;
-   
-}
 
 
 double calculateDeltaTime(struct timeval start, struct timeval end) {
@@ -66,7 +45,6 @@ double calculateDeltaTime(struct timeval start, struct timeval end) {
   
   return milliseconds;
 }
-
 
 
 void error(char *msg){
@@ -102,11 +80,10 @@ int startTCPclient(char *serverIPAddr, int port)
   if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
     error ("ERROR connecting");
   
-  //while(1) {
   // send message to server
   memset(&mypacket, 0, sizeof(struct packet));
-  //getStringFromUser(&mypacket.payload);
  
+  //gets paylod from the user
   scanf("%[^\n]s", mypacket.payload);
   //flush the input buffer
   while ((c = getchar()) != EOF && c != '\n');
@@ -126,11 +103,12 @@ int startTCPclient(char *serverIPAddr, int port)
   // receive the header
   bytes_received = recv(sockfd, &recv_packet.hdr, sizeof(struct header), 0);
   //at theis point we know the payload's size
- // recv_packet.payload = (char*)malloc(sizeof(char) * recv_packet.hdr.length);
   //receives payload
   bytes_received = recv(sockfd, recv_packet.payload, sizeof(char) * recv_packet.hdr.length, 0);
   gettimeofday(&endTime, NULL);
   
+  startTime.tv_sec = recv_packet.hdr.sec;
+  startTime.tv_usec = recv_packet.hdr.usec;
   rtt = calculateDeltaTime(startTime, endTime);
   if (bytes_received < 0) 
     error("ERROR reading from socket");
@@ -173,6 +151,7 @@ void startUDPclient(char *serverIPAddr, int port)
   
   //UDP has not to use CONNECT 
   // send message to server
+  //gets paylod from the user
   scanf("%[^\n]s", mypacket.payload);
   //flush the input buffer
   while ((c = getchar()) != EOF && c != '\n');
@@ -194,10 +173,12 @@ void startUDPclient(char *serverIPAddr, int port)
     error("ERROR reading from socket");
  
  
-   gettimeofday(&endTime, NULL);
-  rtt = calculateDeltaTime(startTime, endTime);
+  gettimeofday(&endTime, NULL);
   
- 
+  //start time is the time we just got from the server (that it echoed from client)
+  startTime.tv_sec = recv_packet.hdr.sec;
+  startTime.tv_usec = recv_packet.hdr.usec;
+  rtt = calculateDeltaTime(startTime, endTime);
 
   //echo the sent message
   fprintf(stdout, "%s\n",recv_packet.payload);

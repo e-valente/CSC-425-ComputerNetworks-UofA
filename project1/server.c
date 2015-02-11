@@ -34,8 +34,6 @@ void startTCPserver(int port) {
   struct packet recv_packet;
   socklen_t clientlen;
   struct sockaddr_in serv_addr, client_addr;
-  char garbage[MAXPAYLOAD];
- 
  
   // create a stream socket (TCP)
   sockfd = socket (AF_INET, SOCK_STREAM, 0);
@@ -72,10 +70,7 @@ void startTCPserver(int port) {
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
-  fprintf(stdout, "%d\n", recv_packet.hdr.length);
-  
   // receive header from client 
- // mypacket.payload = (char*)malloc(sizeof(char) * mypacket.hdr.length);
   bytes_received = recv(session, recv_packet.payload, sizeof(char) * recv_packet.hdr.length, 0);
   if (bytes_received < 0)
     error("ERROR reading from socket");
@@ -123,7 +118,6 @@ void startUDPserver(int port) {
   // receive header from client 
   bytes_received = recvfrom(sockfd, &recv_packet, sizeof(struct packet), 0,
     (struct sockaddr*)&client_addr, &clientlen);
-  
   if (bytes_received < 0)
     error("ERROR reading from socket");
   
